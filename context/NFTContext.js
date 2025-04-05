@@ -130,23 +130,49 @@ export const NFTProvider = ({ children }) => {
   };
 
   const createSale = async (url, formInputPrice, isReselling, id) => {
-    const web3Modal = new Web3Modal();
-    const connection = await web3Modal.connect();
-    const provider = new ethers.providers.Web3Provider(connection);
-    const signer = provider.getSigner();
+    try {
+      const web3Modal = new Web3Modal();
+      const connection = await web3Modal.connect();
+      const provider = new ethers.providers.Web3Provider(connection);
+      const signer = provider.getSigner();
+      const balance = await signer.getBalance();
+      console.log("Signer Address:", await signer.getAddress());
+      console.log("Account Balance (ETH):", ethers.utils.formatEther(balance));
 
-    const price = ethers.utils.parseUnits(formInputPrice, "ether");
-    const contract = fetchContract(signer);
-    const listingPrice = await contract.getListingPrice();
+      const price = ethers.utils.parseUnits(formInputPrice, "ether");
+      const contract = fetchContract(signer);
+      console.log("Contract Address:", contract.address);
 
-    const transaction = !isReselling
-      ? await contract.createToken(url, price, {
-          value: listingPrice.toString(),
-        })
-      : await contract.resellToken(id, price, {
-          value: listingPrice.toString(),
-        });
-    await transaction.wait();
+      const listingPrice = await contract.getListingPrice();
+      console.log(
+        "Listing Price (ETH):",
+        ethers.utils.formatEther(listingPrice)
+      );
+      console.log("Value to Send (wei):", listingPrice.toString());
+
+      if (balance.lt(listingPrice)) {
+        console.error("Insufficient funds for listing price");
+        return;
+      }
+
+      const transaction = !isReselling
+        ? await contract.createToken(url, price, {
+            value: listingPrice,
+            gasLimit: 500000, // Explicit gas limit
+          })
+        : await contract.resellToken(id, price, {
+            value: listingPrice,
+            gasLimit: 500000, // Explicit gas limit
+          });
+      console.log("Transaction Sent:", transaction.hash);
+
+      await transaction.wait();
+      console.log("Transaction Confirmed!");
+    } catch (error) {
+      console.error("Error in createSale:", error);
+      if (error.data) console.error("Error Data:", error.data);
+      throw error;
+    }
   };
 
   const fetchNFTs = async () => {
