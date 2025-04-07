@@ -176,7 +176,9 @@ export const NFTProvider = ({ children }) => {
   };
 
   const fetchNFTs = async () => {
-    const provider = new ethers.providers.JsonRpcProvider();
+    const provider = new ethers.providers.JsonRpcProvider(
+      process.env.NEXT_PUBLIC_RPC_URL
+    );
     const contract = fetchContract(provider);
     //we want to fetch all the nfts on the marketplace not from a specific signer,
     //hence provider passed into fetchContract
